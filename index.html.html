@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>매매일지 — 통합 원장</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700;900&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#EEF0EA;
+    --card:#FBFBF7;
+    --card-alt:#F4F5EF;
+    --ink:#1C2521;
+    --muted:#767C73;
+    --border:#D9DAD0;
+    --accent:#2F5D50;
+    --accent-soft:#DCE7E1;
+    --gain:#C0392B;
+    --gain-soft:#F5E1DE;
+    --loss:#2E6DA4;
+    --loss-soft:#DEE9F1;
+    --stamp:#B23B2E;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Noto Sans KR', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .num{ font-family:'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
+  h1,h2,h3{ font-family:'Noto Serif KR', serif; margin:0; }
+  ::selection{ background:var(--accent-soft); }
+
+  header.top{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:22px 28px 18px; border-bottom:1.5px solid var(--ink);
+    position:relative; flex-wrap:wrap; gap:12px;
+  }
+  header.top .brand{ display:flex; align-items:baseline; gap:10px; }
+  header.top h1{ font-size:22px; font-weight:900; letter-spacing:-0.3px; }
+  header.top .sub{ font-size:12px; color:var(--muted); font-family:'IBM Plex Mono',monospace; }
+  .stamp{
+    width:78px; height:78px; border-radius:50%;
+    border:2.5px solid var(--stamp); color:var(--stamp);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    transform:rotate(-8deg); font-family:'Noto Serif KR',serif; font-weight:700;
+    flex-shrink:0; background:rgba(178,59,46,0.03);
+  }
+  .stamp::before, .stamp::after{ content:''; position:absolute; }
+  .stamp .lbl{ font-size:9px; letter-spacing:1px; margin-bottom:2px;}
+  .stamp .val{ font-size:15px; font-family:'IBM Plex Mono',monospace; font-weight:600; }
+
+  nav.tabs{
+    display:flex; gap:2px; padding:0 28px; background:var(--card-alt);
+    border-bottom:1px solid var(--border); overflow-x:auto;
+  }
+  nav.tabs button{
+    background:none; border:none; padding:13px 16px; font-size:13.5px; font-weight:500;
+    color:var(--muted); cursor:pointer; border-bottom:2.5px solid transparent;
+    font-family:'Noto Sans KR',sans-serif; white-space:nowrap;
+  }
+  nav.tabs button.active{ color:var(--ink); border-bottom-color:var(--accent); font-weight:700; }
+  nav.tabs button:hover{ color:var(--ink); }
+
+  main{ max-width:920px; margin:0 auto; padding:26px 20px 80px; }
+  section.view{ display:none; }
+  section.view.active{ display:block; }
+
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:3px;
+    padding:20px 22px; margin-bottom:18px;
+  }
+  .card h2{ font-size:16px; margin-bottom:14px; display:flex; align-items:center; gap:8px;}
+  .card h2 .eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--accent); font-weight:600; letter-spacing:0.5px; border:1px solid var(--accent); padding:1px 6px; border-radius:2px;}
+
+  .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  @media(max-width:720px){ .grid3{ grid-template-columns:1fr; } }
+  .stat-box{ border:1px solid var(--border); background:var(--card-alt); padding:14px 16px; border-radius:3px; }
+  .stat-box .k{ font-size:11.5px; color:var(--muted); margin-bottom:6px; }
+  .stat-box .v{ font-size:19px; font-weight:600; }
+  .stat-box .v.pos{ color:var(--gain); }
+  .stat-box .v.neg{ color:var(--loss); }
+
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th{ text-align:left; font-size:11px; color:var(--muted); font-weight:600; padding:6px 8px; border-bottom:1px solid var(--ink); }
+  td{ padding:7px 8px; border-bottom:1px solid var(--border); }
+  tr:last-child td{ border-bottom:none; }
+  td.num, th.num{ text-align:right; font-family:'IBM Plex Mono',monospace; }
+  .pos{ color:var(--gain); } .neg{ color:var(--loss); }
+  .tag{ display:inline-block; font-size:10.5px; padding:2px 7px; border-radius:10px; background:var(--accent-soft); color:var(--accent); font-weight:600; }
+
+  .acc-tabs{ display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
+  .acc-tabs button{ background:var(--card-alt); border:1px solid var(--border); padding:6px 12px; font-size:12.5px; border-radius:3px 3px 0 0; cursor:pointer; color:var(--muted); font-family:'Noto Sans KR',sans-serif; }
+  .acc-tabs button.active{ background:var(--card); border-bottom:1px solid var(--card); color:var(--ink); font-weight:700; }
+
+  label{ display:block; font-size:12px; color:var(--muted); margin:10px 0 4px; font-weight:500; }
+  input[type=text],input[type=number],input[type=date],textarea,select{
+    width:100%; padding:9px 10px; border:1px solid var(--border); border-radius:3px;
+    font-size:13.5px; font-family:'Noto Sans KR',sans-serif; background:#fff; color:var(--ink);
+  }
+  textarea{ resize:vertical; min-height:64px; }
+  .row{ display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; }
+  .btn{
+    background:var(--ink); color:#fff; border:none; padding:9px 16px; font-size:13px;
+    border-radius:3px; cursor:pointer; font-weight:600; font-family:'Noto Sans KR',sans-serif;
+  }
+  .btn.secondary{ background:none; color:var(--ink); border:1px solid var(--ink); }
+  .btn.accent{ background:var(--accent); }
+  .btn.small{ padding:5px 10px; font-size:12px; }
+  .btn:disabled{ opacity:0.5; cursor:not-allowed; }
+  .btn.danger{ background:none; color:var(--loss); border:1px solid var(--loss); }
+
+  .trade-item, .strat-update-item{
+    border:1px solid var(--border); border-radius:3px; padding:10px 12px; margin-bottom:8px;
+    display:flex; justify-content:space-between; align-items:center; background:var(--card-alt); font-size:13px;
+  }
+  .hr{ border:none; border-top:1px dashed var(--border); margin:18px 0; }
+
+  .timeline-entry{ border-left:2px solid var(--border); padding:2px 0 18px 18px; position:relative; margin-left:6px; }
+  .timeline-entry::before{ content:''; position:absolute; left:-6px; top:4px; width:10px; height:10px; border-radius:50%; background:var(--accent); }
+  .timeline-entry .date{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted); }
+  .timeline-entry .title{ font-family:'Noto Serif KR',serif; font-size:15.5px; font-weight:700; margin:2px 0 6px; cursor:pointer; }
+  .timeline-entry .title:hover{ text-decoration:underline; }
+
+  .img-thumb{ width:100%; max-width:340px; border:1px solid var(--border); border-radius:3px; margin:6px 6px 6px 0; }
+  .img-wrap{ display:flex; flex-wrap:wrap; }
+
+  .ai-comment{ background:var(--accent-soft); border-left:3px solid var(--accent); padding:12px 14px; font-size:13.5px; line-height:1.65; border-radius:0 3px 3px 0; white-space:pre-wrap; }
+
+  .empty{ color:var(--muted); font-size:13px; text-align:center; padding:26px 0; }
+  .toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:#fff; padding:10px 18px; border-radius:4px; font-size:13px;
+    opacity:0; transition:opacity .3s; pointer-events:none; z-index:99;
+  }
+  .toast.show{ opacity:1; }
+  .close-x{ cursor:pointer; color:var(--loss); font-weight:700; padding:0 4px; }
+  .field-note{ font-size:11px; color:var(--muted); margin-top:3px; }
+
+  .chip-row{ display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+  .chip{
+    border:1px solid var(--border); background:var(--card-alt); color:var(--ink);
+    font-size:12.5px; padding:5px 12px; border-radius:14px; cursor:pointer;
+    font-family:'Noto Sans KR',sans-serif;
+  }
+  .chip.active{ background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  .chip.add{ border-style:dashed; color:var(--accent); border-color:var(--accent); background:none; }
+  .chip.add:hover{ background:var(--accent-soft); }
+  .sector-select{ font-size:12px; padding:4px 6px; }
+
+  .chart-wrap{ position:relative; height:280px; margin-top:6px; }
+  .chart-row{ display:grid; grid-template-columns:1.3fr 1fr; gap:20px; }
+  @media(max-width:760px){ .chart-row{ grid-template-columns:1fr; } }
+  .pie-date-label{ font-size:12px; color:var(--muted); text-align:center; margin-top:6px; }
+
+  /* ---------- 모바일 최적화 (일반적인 폰 화면 폭 기준) ---------- */
+  @media(max-width:600px){
+    main{ padding:16px 12px 60px; }
+    header.top{ padding:16px 16px 12px; }
+    header.top h1{ font-size:18px; }
+    header.top .sub{ font-size:10.5px; }
+    .stamp{ width:60px; height:60px; }
+    .stamp .lbl{ font-size:8px; }
+    .stamp .val{ font-size:13px; }
+    nav.tabs{ padding:0 12px; }
+    nav.tabs button{ padding:11px 12px; font-size:12.5px; }
+    .card{ padding:14px 14px; margin-bottom:14px; }
+    .card h2{ font-size:14.5px; }
+    /* 표는 가로 스크롤로 (내용이 잘리지 않게) */
+    table{ display:block; overflow-x:auto; white-space:nowrap; -webkit-overflow-scrolling:touch; font-size:12px; }
+    th, td{ padding:6px 6px; }
+    .chart-wrap{ height:220px; }
+    .stat-box .v{ font-size:17px; }
+  }
+  @media(max-width:520px){
+    .row{ grid-template-columns: 1fr 1fr; }
+  }
+  @media(max-width:380px){
+    .row{ grid-template-columns: 1fr; }
+    header.top{ flex-direction:column; align-items:flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <h1>매매일지 · 통합 원장</h1>
+    <span class="sub" id="headerSub">계좌를 설정해주세요</span>
+  </div>
+  <div class="stamp" id="stampBadge">
+    <div class="lbl">결산</div>
+    <div class="val" id="stampVal">-</div>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button data-view="dashboard" class="active">대시보드</button>
+  <button data-view="holdings">보유종목</button>
+  <button data-view="newentry">새 일지 작성</button>
+  <button data-view="strategy">전략 트래커</button>
+  <button data-view="history">히스토리</button>
+</nav>
+
+<main>
+
+  <!-- DASHBOARD -->
+  <section class="view active" id="view-dashboard">
+    <div class="card">
+      <h2><span class="eyebrow">SUMMARY</span> 오늘 기준 통합 현황</h2>
+      <div class="grid3">
+        <div class="stat-box"><div class="k">총시드</div><div class="v num" id="d-seed">-</div><div class="field-note num" id="d-seed-sub"></div></div>
+        <div class="stat-box"><div class="k">주식 평가금 합계</div><div class="v num" id="d-eval">-</div><div class="field-note num" id="d-eval-sub"></div></div>
+        <div class="stat-box"><div class="k">시드 대비 손익</div><div class="v num" id="d-pnl">-</div></div>
+      </div>
+      <p class="field-note">※ 평가금은 각 일지 작성 시 입력한 종목별 현재가 기준이며, 예수금은 제외한 주식 평가 합계입니다.</p>
+    </div>
+
+    <div class="card">
+      <h2><span class="eyebrow">CHART</span> 계좌별 평가금 추이 · 섹터 비중</h2>
+      <p class="field-note">보유종목 탭에서 현재가를 갱신한 뒤 <b>"오늘 종가 스냅샷 저장"</b>을 누르면 그 시점 데이터가 그래프에 누적돼요. (같은 날 여러 번 눌러도 그날 데이터는 마지막 값으로 갱신될 뿐 중복되지 않아요)</p>
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin:10px 0;">
+        <div class="acc-tabs" id="periodToggle">
+          <button data-period="daily" class="active">일별</button>
+          <button data-period="monthly">월별</button>
+          <button data-period="yearly">년별</button>
+        </div>
+        <button class="btn accent small" onclick="saveTodaySnapshot()">오늘 종가 스냅샷 저장</button>
+      </div>
+      <p class="field-note" id="chartEmptyNote" style="display:none;">아직 누적된 데이터가 없습니다. 위 버튼으로 오늘 스냅샷을 저장하거나 "새 일지 작성"으로 일지를 남기면 그래프가 그려집니다.</p>
+      <div class="chart-row">
+        <div>
+          <div class="chart-wrap"><canvas id="chartAccounts"></canvas></div>
+          <p class="field-note">그래프의 점을 클릭하면 그 날짜 기준 섹터 비중으로 오른쪽 원형 그래프가 바뀝니다.</p>
+        </div>
+        <div>
+          <div class="chart-wrap"><canvas id="chartSectors"></canvas></div>
+          <div class="pie-date-label" id="pieDateLabel">오늘(실시간) 기준</div>
+          <div style="text-align:center;margin-top:6px;"><button class="btn secondary small" onclick="resetPieToLive()">오늘 기준으로 보기</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="eyebrow">ACCOUNTS</span> 계좌별 손익</h2>
+      <div id="d-accounts"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="eyebrow">STRATEGY</span> 진행중인 전략 요약</h2>
+      <div id="d-strategy"></div>
+    </div>
+  </section>
+
+  <!-- HOLDINGS -->
+  <section class="view" id="view-holdings">
+    <div class="card">
+      <h2><span class="eyebrow">EDIT</span> 계좌별 보유종목 직접 수정</h2>
+      <div class="acc-tabs" id="hold-acctabs"></div>
+      <div class="row" style="margin-bottom:10px;">
+        <div><label style="margin:0;">이 계좌 이름</label><input type="text" id="h-accname"></div>
+        <div style="align-self:flex-end;"><button class="btn secondary small" onclick="renameCurrentAccount()">이름 저장</button></div>
+        <div><label style="margin:0;">이 계좌 예수금</label><input type="text" inputmode="numeric" id="h-acccash" oninput="formatCommaInput(this)"></div>
+        <div style="align-self:flex-end;"><button class="btn secondary small" onclick="saveAccountCash()">예수금 저장</button></div>
+      </div>
+      <div id="hold-table"></div>
+      <div class="hr"></div>
+      <div class="row">
+        <div><label>종목명</label><input type="text" id="h-newname"></div>
+        <div><label>평단가</label><input type="text" inputmode="numeric" id="h-newavg" oninput="formatCommaInput(this)"></div>
+        <div><label>수량</label><input type="text" inputmode="numeric" id="h-newqty" oninput="formatCommaInput(this)"></div>
+        <div><label>현재가 (비우면 평단가와 동일)</label><input type="text" inputmode="numeric" id="h-newprice" oninput="formatCommaInput(this)"></div>
+      </div>
+      <label>섹터 (선택 — 기존 섹터를 클릭하면 선택, ✎로 이름변경 ✕로 삭제, + 로 새로 추가)</label>
+      <div class="chip-row" id="h-newsector-chips"></div>
+      <button class="btn secondary small" style="margin-top:8px;" onclick="addHoldingManual()">+ 종목 추가</button>
+    </div>
+    <div class="card">
+      <h2><span class="eyebrow">SEED</span> 총시드 직접 수정</h2>
+      <div class="row">
+        <div><label>현금시드</label><input type="number" id="s-cash"></div>
+        <div><label>레버리지</label><input type="number" id="s-lev"></div>
+      </div>
+      <button class="btn secondary small" style="margin-top:8px;" onclick="saveSeedManual()">시드 저장</button>
+    </div>
+    <div class="card">
+      <h2><span class="eyebrow">RESET</span> 데이터 전체 초기화</h2>
+      <p class="field-note">보유종목·시드·섹터·히스토리 등 이 앱에 저장된 모든 데이터를 지우고 빈 템플릿 상태로 되돌립니다. 되돌릴 수 없어요.</p>
+      <div id="reset-area" style="margin-top:8px;">
+        <button class="btn danger small" onclick="startResetAll()">전체 초기화</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- NEW ENTRY -->
+  <section class="view" id="view-newentry">
+    <div class="card">
+      <h2><span class="eyebrow">STEP 1</span> 날짜 및 시드</h2>
+      <div class="row">
+        <div><label>일지 날짜</label><input type="date" id="ne-date"></div>
+        <div><label>입금 (없으면 0)</label><input type="number" id="ne-seedDeposit" value="0" min="0"></div>
+        <div><label>출금 (없으면 0)</label><input type="number" id="ne-seedWithdraw" value="0" min="0"></div>
+        <div><label>시드 변동 사유</label><input type="text" id="ne-seedNote" placeholder="예: 추가 입금"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="eyebrow">STEP 2</span> 오늘의 거래 (없으면 건너뛰기)</h2>
+      <div class="row">
+        <div><label>계좌</label>
+          <select id="tr-acc" onchange="renderStockSuggestions()"></select>
+        </div>
+        <div><label>매수/매도</label><select id="tr-type"><option value="buy">매수</option><option value="sell">매도</option></select></div>
+        <div><label>종목명</label><input type="text" id="tr-stock" list="tr-stock-list" placeholder="예: 원익QnC (보유중인 종목이면 목록에서 선택)"><datalist id="tr-stock-list"></datalist></div>
+        <div><label>가격</label><input type="number" id="tr-price"></div>
+        <div><label>수량</label><input type="number" id="tr-qty"></div>
+      </div>
+      <div class="row">
+        <div><label>목표가 (선택)</label><input type="number" id="tr-target"></div>
+        <div><label>손절가 (선택)</label><input type="number" id="tr-stop"></div>
+      </div>
+      <label>매매 이유</label>
+      <textarea id="tr-reason" placeholder="왜 이 가격에 샀는지/팔았는지, 왜 이 종목인지"></textarea>
+      <div style="margin-top:10px;"><button class="btn secondary small" onclick="addTradeRow()">+ 거래 내용 등록</button> <span class="field-note">아래 "일지 저장 및 계산"을 눌러야 최종 저장돼요</span></div>
+      <div id="ne-tradeList" style="margin-top:12px;"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="eyebrow">STEP 3</span> 보유종목 현재가 입력</h2>
+      <p class="field-note">오늘 거래하지 않은 기존 보유종목의 현재가(종가)를 입력하면 평가금이 계산됩니다.</p>
+      <div id="ne-priceInputs"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="eyebrow">STEP 4</span> 차트 근거 · 캡처 첨부</h2>
+      <label>차트상 진입/청산 근거 설명</label>
+      <textarea id="ne-chartNotes" placeholder="지지선/이평선/캔들 패턴 등 진입·홀딩 근거"></textarea>
+      <label>이미지 첨부 (캔들차트 캡처, 카카오페이 계좌 캡처 등)</label>
+      <input type="file" id="ne-images" accept="image/*" multiple>
+      <div class="img-wrap" id="ne-imgPreview"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="eyebrow">선택</span> 시장 분위기 · 심리 · 보유계획</h2>
+      <label>당일 시장 분위기</label>
+      <input type="text" id="ne-mood" placeholder="예: 코스피 강세, 반도체 순환매 지속">
+      <label>매매 당시 심리 상태</label>
+      <input type="text" id="ne-psych" placeholder="예: 조급했다, 확신 있었다">
+      <label>보유기간 계획 대비 실제</label>
+      <input type="text" id="ne-holdplan" placeholder="예: 스윙 계획이었으나 예상보다 오래 보유중">
+    </div>
+
+    <div class="card">
+      <h2><span class="eyebrow">STEP 5</span> 전략 업데이트 (선택)</h2>
+      <div id="ne-strategyUpdates"></div>
+      <div class="hr"></div>
+      <details><summary style="cursor:pointer; font-size:13px; color:var(--accent); font-weight:600;">+ 새로운 전략 추가</summary>
+        <div class="row" style="margin-top:10px;">
+          <div><label>종목</label><input type="text" id="ns-stock"></div>
+          <div><label>계좌</label><select id="ns-acc"></select></div>
+          <div><label>목표가</label><input type="text" id="ns-target"></div>
+        </div>
+        <label>투자 논리 / 트리거 조건</label>
+        <textarea id="ns-thesis"></textarea>
+        <button class="btn secondary small" style="margin-top:8px;" onclick="addNewStrategyDraft()">전략 추가</button>
+        <div id="ns-draftList" style="margin-top:8px;"></div>
+      </details>
+    </div>
+
+    <div class="card">
+      <button class="btn accent" onclick="submitEntry()">일지 저장 및 계산</button>
+      <span class="field-note" id="ne-status" style="margin-left:10px;"></span>
+    </div>
+  </section>
+
+  <!-- STRATEGY -->
+  <section class="view" id="view-strategy">
+    <div class="card">
+      <h2><span class="eyebrow">TRACKER</span> 전략 전체 목록</h2>
+      <div id="strat-full"></div>
+    </div>
+  </section>
+
+  <!-- HISTORY -->
+  <section class="view" id="view-history">
+    <div class="card">
+      <h2><span class="eyebrow">기간</span> 기간 실현손익</h2>
+      <div class="row">
+        <div><label>시작일</label><input type="date" id="rp-from"></div>
+        <div><label>종료일</label><input type="date" id="rp-to"></div>
+      </div>
+      <button class="btn secondary small" style="margin-top:8px;" onclick="calcRealizedPeriod()">조회</button>
+      <div style="margin-top:14px;">
+        <div class="field-note">기간 실현손익</div>
+        <div class="v num" id="rp-amount" style="font-size:22px;font-weight:700;margin-top:4px;">-</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;max-width:420px;">
+          <div class="stat-box"><div class="k">총 매수금액</div><div class="v num" id="rp-buy" style="font-size:14px;">-</div></div>
+          <div class="stat-box"><div class="k">총 매도금액</div><div class="v num" id="rp-sell" style="font-size:14px;">-</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2><span class="eyebrow">TIMELINE</span> 일지 히스토리</h2>
+      <div id="hist-list"></div>
+    </div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- defaults ---------- */
+const DEFAULT_ACCOUNTS = { hanwha: [], kb: [], kbisa: [] };
+const DEFAULT_SEED = {cash:0, leverage:0, total:0};
+const DEFAULT_ACC_LABEL = {hanwha:'계좌 1 (예: 스윙)', kb:'계좌 2 (예: 중기)', kbisa:'계좌 3 (예: 장기)'};
+let ACC_LABEL = structuredClone(DEFAULT_ACC_LABEL);
+
+/* ---------- state ---------- */
+let STATE = { accounts:null, seed:null, seedHistory:[], strategies:[], entriesIndex:[], sectors:[], entriesFullCache:{}, accountCash:{} };
+let formTrades = [];
+let formStrategyDrafts = [];
+let formImages = [];
+let curHoldAcc = 'hanwha';
+let deletingAccountId = null;
+let newHoldingSector = null;
+let chartAccountsInstance = null;
+let chartSectorInstance = null;
+let chartPeriod = 'daily';
+const LINE_COLORS = ['#2F5D50','#B23B2E','#2E6DA4','#8A6D3B','#6B4C8A'];
+const PIE_COLORS = ['#2F5D50','#C0392B','#2E6DA4','#C79A3D','#7A5C9E','#5B8266','#B0715A','#6E8FA8','#9B9B4F','#A85C7B'];
+
+/* ---------- storage helpers ---------- */
+// 이 앱은 Claude 아티팩트 환경에서는 window.storage를 쓸 수 있지만,
+// 다운로드한 HTML을 일반 브라우저에서 직접 열면 window.storage가 존재하지 않습니다.
+// 그래서 두 환경 모두에서 작동하도록 localStorage를 자동 백업 저장소로 사용합니다.
+async function stGet(key){
+  // 1) 특수 앱 저장소가 있는 환경
+  if(window.storage && typeof window.storage.get === 'function'){
+    try{
+      const r = await window.storage.get(key,false);
+      if(r && typeof r.value === 'string') return JSON.parse(r.value);
+    }catch(e){
+      console.warn('window.storage get 실패, localStorage로 대체:', key, e);
+    }
+  }
+
+  // 2) 일반 브라우저 / 로컬 HTML 환경
+  try{
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){
+    console.error('storage get error:', key, e);
+    return null;
+  }
+}
+
+async function stSet(key,val){
+  let json;
+  try{
+    json = JSON.stringify(val);
+  }catch(e){
+    console.error('JSON 변환 실패:', key, e);
+    return false;
+  }
+
+  // 1) 특수 앱 저장소가 있는 경우 우선 사용 (반환값이 null이면 실패로 간주)
+  if(window.storage && typeof window.storage.set === 'function'){
+    try{
+      const r = await window.storage.set(key, json, false);
+      if(r) return true;
+      console.warn('window.storage set이 실패를 반환함, localStorage로 대체:', key);
+    }catch(e){
+      console.warn('window.storage set 실패, localStorage로 대체:', key, e);
+    }
+  }
+
+  // 2) 일반 브라우저에서는 localStorage 사용
+  try{
+    localStorage.setItem(key, json);
+    // 실제 저장 여부 확인
+    return localStorage.getItem(key) === json;
+  }catch(e){
+    console.error('localStorage set error:', key, e);
+    return false;
+  }
+}
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function won(n){ return (n||0).toLocaleString('ko-KR')+'원'; }
+function pct(n){ return (n>=0?'+':'')+n.toFixed(2)+'%'; }
+function formatNum(n){
+  if(n===null||n===undefined||n==='') return '';
+  const num = typeof n==='string' ? parseFloat(n.replace(/,/g,'')) : n;
+  return isNaN(num) ? '' : num.toLocaleString('ko-KR');
+}
+function parseNum(str){
+  if(str===null||str===undefined) return NaN;
+  const cleaned = String(str).replace(/,/g,'').trim();
+  return cleaned==='' ? NaN : parseFloat(cleaned);
+}
+function formatCommaInput(el){
+  const raw = el.value.replace(/[^0-9.-]/g,'');
+  if(raw===''){ el.value=''; return; }
+  const num = parseFloat(raw);
+  if(isNaN(num)) return;
+  el.value = num.toLocaleString('ko-KR');
+}
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+/* ---------- daily entry = sessions[] (하루에 여러 번 저장해도 누적) ---------- */
+// 예전 형식(엔트리 최상위에 trades/chartNotes 등이 바로 있는 경우)을 세션 1개짜리 배열로 변환
+function normalizeEntrySessions(entry){
+  if(entry && Array.isArray(entry.sessions)) return entry.sessions;
+  if(!entry) return [];
+  return [{
+    time: (entry.date||'')+'T00:00:00', kind:'full',
+    trades: entry.trades||[], chartNotes: entry.chartNotes||'', images: entry.images||[],
+    mood: entry.mood||'', psych: entry.psych||'', holdplan: entry.holdplan||'',
+    seedDeposit: entry.seedDeposit||0, seedWithdraw: entry.seedWithdraw||0, seedNote: entry.seedNote||''
+  }];
+}
+// 그날 모든 저장분(세션)의 매도 거래 실현손익을 합산
+function computeEntryRealizedPnL(entry){
+  let sum = 0;
+  normalizeEntrySessions(entry).forEach(s=>{
+    (s.trades||[]).forEach(t=>{
+      if(t.type==='sell' && typeof t.realizedPnL==='number') sum += t.realizedPnL;
+    });
+  });
+  return sum;
+}
+// 그날 매수금액/매도금액/실현손익 합계를 한번에 계산 (히스토리 인덱스에 저장해서 기간 조회를 가볍게 만들기 위함)
+function computeEntryTradeTotals(entry){
+  let realizedPnL=0, buyTotal=0, sellTotal=0;
+  normalizeEntrySessions(entry).forEach(s=>{
+    (s.trades||[]).forEach(t=>{
+      const amt = (t.price||0)*(t.qty||0);
+      if(t.type==='buy') buyTotal += amt;
+      else if(t.type==='sell'){
+        sellTotal += amt;
+        if(typeof t.realizedPnL==='number') realizedPnL += t.realizedPnL;
+      }
+    });
+  });
+  return {realizedPnL, buyTotal, sellTotal};
+}
+// 같은 날짜에 이미 저장된 엔트리가 있으면 세션을 이어붙이고, 없으면 새로 만든다.
+async function upsertDailySession(date, sessionData){
+  const existingIdx = STATE.entriesIndex.findIndex(e=>e.date===date);
+  const entryId = existingIdx>=0 ? STATE.entriesIndex[existingIdx].id : uid();
+  let existingEntry = null;
+  if(existingIdx>=0){
+    existingEntry = STATE.entriesFullCache[entryId] || await stGet('entry-'+entryId);
+  }
+  const prevSessions = existingEntry ? normalizeEntrySessions(existingEntry) : [];
+  // 종가 스냅샷(quick)은 그날 마지막 1번만 남기고, 정식 저장(full) 세션들은 그대로 유지
+  const sessions = sessionData.kind==='quick'
+    ? [...prevSessions.filter(s=>s.kind!=='quick'), sessionData]
+    : [...prevSessions, sessionData];
+  const summary = totalSummary();
+  const entry = {
+    id: entryId, date, sessions,
+    accountsSnapshot: structuredClone(STATE.accounts),
+    seedSnapshot: structuredClone(STATE.seed),
+    summary
+  };
+  return { entry, existingIdx, entryId };
+}
+
+/* ---------- init ---------- */
+async function init(){
+  STATE.accounts = await stGet('accounts-holdings') || structuredClone(DEFAULT_ACCOUNTS);
+  STATE.seed = await stGet('seed-info') || structuredClone(DEFAULT_SEED);
+  STATE.seedHistory = await stGet('seed-history') || [];
+  STATE.strategies = await stGet('strategy-list') || [];
+  STATE.entriesIndex = await stGet('entries-index') || [];
+  STATE.sectors = await stGet('sector-list') || [];
+  STATE.accountCash = await stGet('account-cash') || {};
+  ACC_LABEL = (await stGet('acc-labels')) || structuredClone(DEFAULT_ACC_LABEL);
+  if(!ACC_LABEL[curHoldAcc]) curHoldAcc = Object.keys(ACC_LABEL)[0];
+  document.getElementById('ne-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('headerSub').textContent = Object.values(ACC_LABEL).join(' · ');
+  const todayStr = new Date().toISOString().slice(0,10);
+  const twoWeeksAgo = addDays(todayStr, -13);
+  document.getElementById('rp-from').value = twoWeeksAgo;
+  document.getElementById('rp-to').value = todayStr;
+  renderAccSelects();
+  renderDashboard();
+  renderHoldingsView();
+  renderStrategyView();
+  renderHistoryList();
+  renderNewEntryPrices();
+  renderStrategyUpdatesForm();
+  renderNewSectorChips();
+  renderCharts();
+}
+
+function renderAccSelects(){
+  const opts = Object.keys(ACC_LABEL).map(k=>`<option value="${k}">${ACC_LABEL[k]}</option>`).join('');
+  document.getElementById('tr-acc').innerHTML = opts;
+  document.getElementById('ns-acc').innerHTML = opts;
+  renderStockSuggestions();
+}
+function renderStockSuggestions(){
+  const dl = document.getElementById('tr-stock-list');
+  if(!dl) return;
+  const acc = document.getElementById('tr-acc').value;
+  const names = (STATE.accounts[acc]||[]).map(h=>h.name);
+  dl.innerHTML = names.map(n=>`<option value="${n}"></option>`).join('');
+}
+function renderAccTabs(){
+  const keys = Object.keys(ACC_LABEL);
+  let html = keys.map(k=>{
+    if(deletingAccountId===k){
+      const cnt = (STATE.accounts[k]||[]).length;
+      return `<span style="display:inline-flex;gap:6px;align-items:center;background:var(--card-alt);border:1px solid var(--loss);border-radius:3px;padding:5px 9px;margin-bottom:4px;">
+        <span style="font-size:11.5px;color:var(--loss);">"${ACC_LABEL[k]}" 삭제할까요?${cnt?(' (보유종목 '+cnt+'개 포함)'):''}</span>
+        <button type="button" class="chip active" style="padding:3px 9px;background:var(--loss);border-color:var(--loss);" onclick="confirmDeleteAccount('${k}')">삭제</button>
+        <button type="button" class="chip" style="padding:3px 9px;" onclick="cancelDeleteAccount()">취소</button>
+      </span>`;
+    }
+    return `<span style="position:relative; display:inline-block;">
+      <button data-acc="${k}" class="${k===curHoldAcc?'active':''}" style="padding-right:22px;">${ACC_LABEL[k]}</button>
+      <span onclick="event.stopPropagation(); startDeleteAccount('${k}');" title="계좌 삭제" style="position:absolute; top:3px; right:5px; cursor:pointer; font-size:11px; color:var(--muted); line-height:1;">✕</span>
+    </span>`;
+  }).join('');
+  html += `<button type="button" onclick="addAccount()" style="background:none;border:none;color:var(--accent);padding:6px 10px;font-size:12.5px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;font-weight:600;">+ 계좌 추가</button>`;
+  document.getElementById('hold-acctabs').innerHTML = html;
+  if(!deletingAccountId){
+    document.getElementById('h-accname').value = ACC_LABEL[curHoldAcc] || '';
+    document.getElementById('h-acccash').value = formatNum(STATE.accountCash[curHoldAcc]||0);
+  }
+}
+function startDeleteAccount(id){ deletingAccountId = id; renderAccTabs(); }
+function cancelDeleteAccount(){ deletingAccountId = null; renderAccTabs(); }
+async function confirmDeleteAccount(id){
+  const keys = Object.keys(ACC_LABEL);
+  if(keys.length<=1){ toast('최소 1개의 계좌는 있어야 해요'); deletingAccountId=null; renderAccTabs(); return; }
+  delete ACC_LABEL[id];
+  delete STATE.accounts[id];
+  delete STATE.accountCash[id];
+  await stSet('acc-labels', ACC_LABEL);
+  await stSet('accounts-holdings', STATE.accounts);
+  await stSet('account-cash', STATE.accountCash);
+  if(curHoldAcc===id){ curHoldAcc = Object.keys(ACC_LABEL)[0]; }
+  deletingAccountId = null;
+  document.getElementById('headerSub').textContent = Object.values(ACC_LABEL).join(' · ');
+  renderAccSelects(); renderAccTabs(); renderHoldingsView(); renderDashboard(); renderStrategyView(); renderCharts();
+  toast('계좌가 삭제되었습니다');
+}
+async function addAccount(){
+  const id = 'acc_'+uid();
+  ACC_LABEL[id] = '새 계좌';
+  STATE.accounts[id] = [];
+  STATE.accountCash[id] = 0;
+  await stSet('acc-labels', ACC_LABEL);
+  await stSet('accounts-holdings', STATE.accounts);
+  await stSet('account-cash', STATE.accountCash);
+  curHoldAcc = id;
+  document.getElementById('headerSub').textContent = Object.values(ACC_LABEL).join(' · ');
+  renderAccSelects(); renderAccTabs(); renderHoldingsView(); renderDashboard(); renderCharts();
+  toast('계좌가 추가되었습니다. 이름을 지정해주세요.');
+}
+async function saveAccountCash(){
+  const val = parseNum(document.getElementById('h-acccash').value);
+  STATE.accountCash[curHoldAcc] = isNaN(val) ? 0 : val;
+  await stSet('account-cash', STATE.accountCash);
+  renderDashboard();
+  toast('예수금이 저장되었습니다');
+}
+async function renameCurrentAccount(){
+  const val = document.getElementById('h-accname').value.trim();
+  if(!val){ toast('계좌 이름을 입력해주세요'); return; }
+  ACC_LABEL[curHoldAcc] = val;
+  await stSet('acc-labels', ACC_LABEL);
+  document.getElementById('headerSub').textContent = Object.values(ACC_LABEL).join(' · ');
+  renderAccSelects();
+  renderAccTabs();
+  renderDashboard();
+  renderStrategyView();
+  renderCharts();
+  toast('계좌 이름이 저장되었습니다');
+}
+
+/* ---------- sector chips (통합: 선택 + 이름변경 + 삭제 + 추가) ---------- */
+let addingSectorNew = false;
+let editingSectorIndex = null;
+let deletingSectorIndex = null;
+function renderNewSectorChips(){
+  const el = document.getElementById('h-newsector-chips');
+  if(!el) return;
+  let html = STATE.sectors.map((s,i)=>{
+    if(editingSectorIndex===i){
+      return `<span style="display:inline-flex;gap:4px;align-items:center;">
+        <input type="text" id="sector-edit-input" value="${s}" style="width:110px;padding:5px 8px;font-size:12.5px;" onkeydown="if(event.key==='Enter'){confirmRenameSector(${i});}">
+        <button type="button" class="chip active" style="padding:5px 10px;" onclick="confirmRenameSector(${i})">저장</button>
+        <button type="button" class="chip" style="padding:5px 10px;" onclick="cancelSectorEdit()">취소</button>
+      </span>`;
+    }
+    if(deletingSectorIndex===i){
+      return `<span style="display:inline-flex;gap:4px;align-items:center;">
+        <span style="font-size:12.5px;color:var(--loss);">"${s}" 삭제할까요?</span>
+        <button type="button" class="chip" style="padding:5px 10px;border-color:var(--loss);color:var(--loss);" onclick="confirmDeleteSector(${i})">삭제</button>
+        <button type="button" class="chip" style="padding:5px 10px;" onclick="cancelSectorEdit()">취소</button>
+      </span>`;
+    }
+    const nameEsc = s.replace(/'/g,"\\'");
+    return `<span class="chip ${s===newHoldingSector?'active':''}" style="cursor:pointer;" onclick="selectNewSector('${nameEsc}')">
+      ${s}
+      <span style="cursor:pointer;margin-left:6px;opacity:0.75;" onclick="event.stopPropagation(); startSectorEdit(${i});" title="이름 변경">✎</span>
+      <span style="cursor:pointer;margin-left:3px;opacity:0.75;" onclick="event.stopPropagation(); startSectorDelete(${i});" title="삭제">✕</span>
+    </span>`;
+  }).join('');
+  if(addingSectorNew){
+    html += `<span style="display:inline-flex;gap:4px;align-items:center;">
+      <input type="text" id="h-newsector-input" placeholder="새 섹터명" style="width:120px;padding:5px 8px;font-size:12.5px;" onkeydown="if(event.key==='Enter'){confirmAddSector('new');}">
+      <button type="button" class="chip active" style="padding:5px 10px;" onclick="confirmAddSector('new')">확인</button>
+      <button type="button" class="chip" style="padding:5px 10px;" onclick="cancelAddSector('new')">취소</button>
+    </span>`;
+  } else {
+    html += `<button type="button" class="chip add" onclick="toggleAddSectorInput('new')">+ 섹터추가</button>`;
+  }
+  el.innerHTML = html;
+  if(addingSectorNew){ const inp=document.getElementById('h-newsector-input'); if(inp) inp.focus(); }
+  if(editingSectorIndex!==null){ const inp=document.getElementById('sector-edit-input'); if(inp){ inp.focus(); inp.select(); } }
+}
+function selectNewSector(s){ newHoldingSector = s; addingSectorNew=false; renderNewSectorChips(); }
+function toggleAddSectorInput(context){
+  if(context==='new'){ addingSectorNew = true; renderNewSectorChips(); }
+  else { showInlineSectorInput(context); }
+}
+function cancelAddSector(context){
+  if(context==='new'){ addingSectorNew = false; renderNewSectorChips(); }
+  else { renderHoldingsView(); }
+}
+async function confirmAddSector(context){
+  const inp = context==='new' ? document.getElementById('h-newsector-input') : document.getElementById('inline-sector-input-'+context);
+  if(!inp) return;
+  const v = inp.value.trim();
+  if(!v){ toast('섹터명을 입력해주세요'); return; }
+  if(!STATE.sectors.includes(v)){ STATE.sectors.push(v); await stSet('sector-list', STATE.sectors); }
+  if(context==='new'){
+    newHoldingSector = v; addingSectorNew = false; renderHoldingsView();
+  } else {
+    const h = STATE.accounts[curHoldAcc].find(x=>x.id===context);
+    if(h){ h.sector = v; await stSet('accounts-holdings', STATE.accounts); }
+    renderHoldingsView(); renderDashboard(); renderCharts();
+  }
+}
+function showInlineSectorInput(holdingId){
+  const cell = document.getElementById('sector-cell-'+holdingId);
+  if(!cell) return;
+  cell.innerHTML = `<span style="display:inline-flex;gap:4px;align-items:center;">
+    <input type="text" id="inline-sector-input-${holdingId}" placeholder="새 섹터명" style="width:100px;padding:4px 6px;font-size:12px;" onkeydown="if(event.key==='Enter'){confirmAddSector('${holdingId}');}">
+    <button type="button" class="chip active" style="padding:4px 8px;font-size:11px;" onclick="confirmAddSector('${holdingId}')">확인</button>
+    <button type="button" class="chip" style="padding:4px 8px;font-size:11px;" onclick="cancelAddSector('${holdingId}')">취소</button>
+  </span>`;
+  const inp = document.getElementById('inline-sector-input-'+holdingId);
+  if(inp) inp.focus();
+}
+async function setHoldingSector(id, val){
+  if(val==='__add__'){ showInlineSectorInput(id); return; }
+  const h = STATE.accounts[curHoldAcc].find(x=>x.id===id);
+  if(h){ h.sector = val || null; await stSet('accounts-holdings', STATE.accounts); renderDashboard(); renderCharts(); }
+}
+
+/* ---------- sector rename / delete (통합 칩에서 사용) ---------- */
+function startSectorEdit(i){ editingSectorIndex=i; deletingSectorIndex=null; renderNewSectorChips(); }
+function startSectorDelete(i){ deletingSectorIndex=i; editingSectorIndex=null; renderNewSectorChips(); }
+function cancelSectorEdit(){ editingSectorIndex=null; deletingSectorIndex=null; renderNewSectorChips(); }
+async function confirmRenameSector(i){
+  const inp = document.getElementById('sector-edit-input');
+  if(!inp) return;
+  const newName = inp.value.trim();
+  if(!newName){ toast('섹터명을 입력해주세요'); return; }
+  const oldName = STATE.sectors[i];
+  if(newName===oldName){ editingSectorIndex=null; renderNewSectorChips(); return; }
+  if(STATE.sectors.includes(newName)){ toast('이미 있는 섹터명이에요'); return; }
+  STATE.sectors[i] = newName;
+  Object.values(STATE.accounts).forEach(list=> list.forEach(h=>{ if(h.sector===oldName) h.sector=newName; }));
+  if(newHoldingSector===oldName) newHoldingSector=newName;
+  await stSet('sector-list', STATE.sectors);
+  await stSet('accounts-holdings', STATE.accounts);
+  editingSectorIndex = null;
+  renderHoldingsView(); renderDashboard(); renderCharts();
+  toast('섹터 이름이 변경되었습니다');
+}
+async function confirmDeleteSector(i){
+  const name = STATE.sectors[i];
+  STATE.sectors.splice(i,1);
+  Object.values(STATE.accounts).forEach(list=> list.forEach(h=>{ if(h.sector===name) h.sector=null; }));
+  if(newHoldingSector===name) newHoldingSector=null;
+  await stSet('sector-list', STATE.sectors);
+  await stSet('accounts-holdings', STATE.accounts);
+  deletingSectorIndex = null;
+  renderHoldingsView(); renderDashboard(); renderCharts();
+  toast('섹터가 삭제되었습니다');
+}
+
+/* ---------- charts ---------- */
+async function loadEntriesForChart(){
+  const ids = STATE.entriesIndex.map(e=>e.id);
+  const results = await Promise.all(ids.map(async id=>{
+    if(STATE.entriesFullCache[id]) return STATE.entriesFullCache[id];
+    const full = await stGet('entry-'+id);
+    if(full) STATE.entriesFullCache[id] = full;
+    return full;
+  }));
+  return results.filter(Boolean).sort((a,b)=> a.date.localeCompare(b.date));
+}
+
+/* ---------- 기간 실현손익 (entriesIndex만 사용 — 이미지 등 무거운 본문은 안 건드림) ---------- */
+function addDays(dateStr, n){
+  const d = new Date(dateStr+'T00:00:00');
+  d.setDate(d.getDate()+n);
+  return d.toISOString().slice(0,10);
+}
+// 기간 내 매도 실현손익 합계, 총 매수·매도 금액 — entriesIndex에 이미 저장된 값만 더하면 되므로 가볍다
+function sumTotalsFromIndex(indexAsc, from, to){
+  let realizedSum=0, buyTotal=0, sellTotal=0;
+  indexAsc.forEach(e=>{
+    if(e.date<from || e.date>to) return;
+    realizedSum += e.realizedPnL||0;
+    buyTotal += e.buyTotal||0;
+    sellTotal += e.sellTotal||0;
+  });
+  return {realizedSum, buyTotal, sellTotal};
+}
+// 예전 방식으로 저장돼 evalV/buyTotal/sellTotal이 없는 인덱스 항목만 골라서, 그것들만 개별적으로 불러와 채워넣는다.
+// (전체를 다시 불러오지 않고, 부족한 항목만 1회성으로 보정 — 이후에는 다시 필요없음)
+let indexBackfillPromise = null;
+async function ensureIndexTotals(){
+  if(indexBackfillPromise) return indexBackfillPromise;
+  const missing = STATE.entriesIndex.filter(e=> e.evalV===undefined);
+  if(!missing.length) return;
+  indexBackfillPromise = (async ()=>{
+    await Promise.all(missing.map(async e=>{
+      const full = STATE.entriesFullCache[e.id] || await stGet('entry-'+e.id);
+      if(full){
+        STATE.entriesFullCache[e.id] = full;
+        const totals = computeEntryTradeTotals(full);
+        e.evalV = full.summary ? (full.summary.evalV||0) : 0;
+        e.buyTotal = totals.buyTotal;
+        e.sellTotal = totals.sellTotal;
+        if(e.realizedPnL===undefined) e.realizedPnL = totals.realizedPnL;
+      } else {
+        e.evalV = 0; e.buyTotal = 0; e.sellTotal = 0;
+      }
+    }));
+    await stSet('entries-index', STATE.entriesIndex); // 채운 값을 저장해두면 다음부턴 다시 안 채워도 됨
+  })();
+  await indexBackfillPromise;
+}
+async function calcRealizedPeriod(){
+  const from = document.getElementById('rp-from').value;
+  const to = document.getElementById('rp-to').value;
+  if(!from || !to || from>to){ toast('기간을 올바르게 선택해주세요'); return; }
+  await ensureIndexTotals();
+  const indexAsc = [...STATE.entriesIndex].sort((a,b)=> a.date.localeCompare(b.date));
+  const {realizedSum, buyTotal, sellTotal} = sumTotalsFromIndex(indexAsc, from, to);
+  const pctVal = buyTotal ? (realizedSum/buyTotal*100) : 0;
+  const amtEl = document.getElementById('rp-amount');
+  amtEl.textContent = won(realizedSum) + '   ' + (pctVal>=0?'+':'') + pctVal.toFixed(2) + '%';
+  amtEl.className = 'v num ' + (realizedSum>=0?'pos':'neg');
+  document.getElementById('rp-buy').textContent = won(buyTotal);
+  document.getElementById('rp-sell').textContent = won(sellTotal);
+}
+function computeSectorTotals(accountsObj, allowedKeys){
+  const totals = {};
+  const keys = allowedKeys || Object.keys(accountsObj||{});
+  keys.forEach(k=>{
+    const list = (accountsObj||{})[k] || [];
+    list.forEach(h=>{
+      const sec = h.sector || '미분류';
+      const ev = (h.lastPrice ?? h.avgPrice) * h.qty;
+      totals[sec] = (totals[sec]||0) + ev;
+    });
+  });
+  return totals;
+}
+let currentPieAccountsSnapshot = null;
+let currentPieLabel = '';
+function renderSectorPie(accountsObj, label, allowedKeys){
+  currentPieAccountsSnapshot = accountsObj;
+  currentPieLabel = label;
+  const noteEl = document.getElementById('pieDateLabel');
+  if(noteEl) noteEl.textContent = label + ' 기준';
+  const totals = computeSectorTotals(accountsObj, allowedKeys);
+  const labels = Object.keys(totals);
+  const data = Object.values(totals);
+  const total = data.reduce((a,b)=>a+b,0);
+  const canvas = document.getElementById('chartSectors');
+  if(!canvas || typeof Chart==='undefined') return;
+  if(chartSectorInstance) chartSectorInstance.destroy();
+  if(!labels.length){ return; }
+  chartSectorInstance = new Chart(canvas.getContext('2d'), {
+    type:'pie',
+    data:{ labels, datasets:[{ data, backgroundColor: PIE_COLORS.slice(0,labels.length), borderColor:'#FBFBF7', borderWidth:2 }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ position:'bottom', labels:{ font:{family:"'Noto Sans KR'", size:11.5}, boxWidth:12 } },
+        tooltip:{
+          callbacks:{
+            label:function(context){
+              const v = context.parsed;
+              const p = total? (v/total*100).toFixed(1) : '0.0';
+              return `${context.label}: ${won(v)} (${p}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+function visibleAccountKeys(){
+  const accKeys = Object.keys(ACC_LABEL);
+  if(!chartAccountsInstance) return accKeys;
+  return accKeys.filter((k,i)=> chartAccountsInstance.isDatasetVisible(i+1)); // index 0 = 총계좌
+}
+function resetPieToLive(){ renderSectorPie(STATE.accounts, '오늘(실시간)', visibleAccountKeys()); }
+
+function aggregateEntries(entries, period){
+  if(period==='daily') return entries;
+  const map = {};
+  entries.forEach(e=>{
+    const key = period==='monthly' ? e.date.slice(0,7) : e.date.slice(0,4);
+    map[key] = e; // entries are date-ascending, so the later one in the same period wins (= period-end snapshot)
+  });
+  return Object.keys(map).sort().map(k=>map[k]);
+}
+
+async function renderCharts(){
+  const canvas = document.getElementById('chartAccounts');
+  if(!canvas || typeof Chart==='undefined') return;
+  const allEntries = await loadEntriesForChart();
+  document.getElementById('chartEmptyNote').style.display = allEntries.length ? 'none' : 'block';
+  const entries = aggregateEntries(allEntries, chartPeriod);
+  const accKeys = Object.keys(ACC_LABEL);
+  const labels = entries.map(e=> chartPeriod==='yearly' ? e.date.slice(0,4)+'년' : chartPeriod==='monthly' ? e.date.slice(0,7) : e.date);
+  const totalDataset = {
+    label: '총계좌',
+    data: entries.map(e=> accKeys.reduce((sum,k)=> sum + accountEval((e.accountsSnapshot&&e.accountsSnapshot[k])||[]).evalV, 0)),
+    borderColor: '#1C2521',
+    backgroundColor: '#1C2521',
+    borderWidth:2.5, borderDash:[6,3],
+    tension:0.25, pointRadius:4, pointHoverRadius:6, fill:false
+  };
+  const datasets = [totalDataset, ...accKeys.map((k,i)=>({
+    label: ACC_LABEL[k],
+    data: entries.map(e=> accountEval((e.accountsSnapshot&&e.accountsSnapshot[k])||[]).evalV ),
+    borderColor: LINE_COLORS[i%LINE_COLORS.length],
+    backgroundColor: LINE_COLORS[i%LINE_COLORS.length],
+    tension:0.25, pointRadius:4, pointHoverRadius:6, fill:false
+  }))];
+  if(chartAccountsInstance) chartAccountsInstance.destroy();
+  chartAccountsInstance = new Chart(canvas.getContext('2d'), {
+    type:'line',
+    data:{ labels, datasets },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{
+          position:'bottom',
+          labels:{
+            font:{family:"'Noto Sans KR'", size:11.5}, boxWidth:12,
+            generateLabels: function(chart){
+              const items = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+              items.forEach(it=>{ it.lineDash = []; }); // 범례 아이콘은 항상 실선 네모로 표시 (그래프 선 자체의 점선은 유지)
+              return items;
+            }
+          },
+          onClick: function(e, legendItem, legend){
+            Chart.defaults.plugins.legend.onClick.call(this, e, legendItem, legend);
+            // 계좌를 껐다 켰다 하면 오른쪽 섹터 원형그래프도 그 즉시 반영
+            const visible = visibleAccountKeys();
+            renderSectorPie(currentPieAccountsSnapshot || STATE.accounts, currentPieLabel || '오늘(실시간)', visible);
+          }
+        }
+      },
+      scales:{ y:{ ticks:{ callback:v=> (v/10000).toLocaleString()+'만' } } },
+      onClick:(evt, elements)=>{
+        if(elements && elements.length){
+          const idx = elements[0].index;
+          const entry = entries[idx];
+          if(entry) renderSectorPie(entry.accountsSnapshot, entry.date, visibleAccountKeys());
+        }
+      }
+    }
+  });
+  if(entries.length){
+    const last = entries[entries.length-1];
+    renderSectorPie(last.accountsSnapshot, last.date);
+  } else {
+    renderSectorPie(STATE.accounts, '오늘(실시간)');
+  }
+}
+
+document.getElementById('periodToggle').addEventListener('click', e=>{
+  if(e.target.tagName!=='BUTTON') return;
+  chartPeriod = e.target.dataset.period;
+  document.querySelectorAll('#periodToggle button').forEach(b=>b.classList.remove('active'));
+  e.target.classList.add('active');
+  renderCharts();
+});
+
+async function saveTodaySnapshot(){
+  const date = new Date().toISOString().slice(0,10);
+  const sessionData = {
+    time: new Date().toISOString(), kind:'quick',
+    trades: [], chartNotes:'', images:[], mood:'', psych:'', holdplan:'',
+    seedDeposit:0, seedWithdraw:0, seedNote:''
+  };
+  const { entry, existingIdx, entryId } = await upsertDailySession(date, sessionData);
+
+  const entrySaved = await stSet('entry-'+entryId, entry);
+  if(!entrySaved){
+    toast('오늘 스냅샷 상세내용 저장에 실패했습니다.');
+    return;
+  }
+  const hasTrades = entry.sessions.some(s=> (s.trades||[]).length>0);
+  const totals = computeEntryTradeTotals(entry);
+  const idxEntry = {id:entryId, date, pnlPct:entry.summary.seedPct, hasTrades, realizedPnL:totals.realizedPnL, buyTotal:totals.buyTotal, sellTotal:totals.sellTotal, evalV:entry.summary.evalV};
+  const nextIndex = existingIdx>=0
+    ? STATE.entriesIndex.map((e,i)=> i===existingIdx ? idxEntry : e)
+    : [idxEntry, ...STATE.entriesIndex];
+  const indexSaved = await stSet('entries-index', nextIndex);
+  if(!indexSaved){
+    toast('오늘 스냅샷 목록 저장에 실패했습니다.');
+    return;
+  }
+
+  STATE.entriesIndex = nextIndex;
+  STATE.entriesFullCache[entryId] = entry;
+  renderHistoryList();
+  renderCharts();
+  toast('오늘('+date+') 스냅샷이 저장되었습니다 (기존 그날 기록에 이어붙임)');
+}
+
+/* ---------- calc ---------- */
+function accountEval(list){
+  let cost=0, evalV=0;
+  list.forEach(h=>{ cost += h.avgPrice*h.qty; evalV += (h.lastPrice ?? h.avgPrice)*h.qty; });
+  return {cost, evalV, pnl:evalV-cost, pct: cost? (evalV-cost)/cost*100 : 0};
+}
+function totalSummary(){
+  const accs = Object.keys(ACC_LABEL);
+  let cost=0, evalV=0;
+  accs.forEach(a=>{ const r=accountEval(STATE.accounts[a]||[]); cost+=r.cost; evalV+=r.evalV; });
+  const cashTotal = accs.reduce((sum,a)=> sum + (STATE.accountCash[a]||0), 0);
+  const seedTotal = STATE.seed.total;
+  const seedPnl = evalV - seedTotal;
+  return {cost, evalV, cashTotal, seedTotal, seedPnl, seedPct: seedTotal? seedPnl/seedTotal*100 : 0};
+}
+
+/* ---------- dashboard ---------- */
+function renderDashboard(){
+  const s = totalSummary();
+  document.getElementById('d-seed').textContent = won(s.seedTotal);
+  document.getElementById('d-seed-sub').textContent = '(레버리지: '+won(STATE.seed.leverage)+')';
+  document.getElementById('d-eval').textContent = won(s.evalV);
+  document.getElementById('d-eval-sub').textContent = '(예수금: '+won(s.cashTotal)+')';
+  const pnlEl = document.getElementById('d-pnl');
+  pnlEl.textContent = won(s.seedPnl)+' ('+pct(s.seedPct)+')';
+  pnlEl.className = 'v num '+(s.seedPnl>=0?'pos':'neg');
+
+  document.getElementById('stampVal').textContent = pct(s.seedPct);
+  document.getElementById('stampBadge').style.borderColor = s.seedPnl>=0 ? 'var(--gain)' : 'var(--loss)';
+  document.getElementById('stampBadge').style.color = s.seedPnl>=0 ? 'var(--gain)' : 'var(--loss)';
+
+  let html='';
+  Object.keys(ACC_LABEL).forEach(a=>{
+    const r = accountEval(STATE.accounts[a]||[]);
+    html += `<h3 style="font-size:13.5px;margin:14px 0 8px;">${ACC_LABEL[a]} — <span class="${r.pnl>=0?'pos':'neg'} num">${won(r.pnl)} (${pct(r.pct)})</span> <span class="field-note">예수금 ${won(STATE.accountCash[a]||0)}</span></h3>`;
+    html += `<table><thead><tr><th>종목</th><th class="num">평단가</th><th class="num">수량</th><th class="num">평가금</th><th class="num">손익</th><th class="num">수익률</th></tr></thead><tbody>`;
+    (STATE.accounts[a]||[]).forEach(h=>{
+      const ev=(h.lastPrice??h.avgPrice)*h.qty, cst=h.avgPrice*h.qty, pnl=ev-cst, pc= cst? pnl/cst*100:0;
+      html += `<tr><td>${h.name}</td><td class="num">${won(h.avgPrice)}</td><td class="num">${h.qty}</td><td class="num">${won(ev)}</td><td class="num ${pnl>=0?'pos':'neg'}">${won(pnl)}</td><td class="num ${pnl>=0?'pos':'neg'}">${pct(pc)}</td></tr>`;
+    });
+    html += `</tbody></table>`;
+  });
+  document.getElementById('d-accounts').innerHTML = html || '<div class="empty">보유 종목이 없습니다.</div>';
+
+  const active = STATE.strategies.filter(x=>x.status!=='종료');
+  document.getElementById('d-strategy').innerHTML = active.length ? active.map(s=>`
+    <div style="padding:8px 0;border-bottom:1px solid var(--border);">
+      <span class="tag">${ACC_LABEL[s.acc]||s.acc}</span> <b>${s.stock}</b> — ${s.target?('목표 '+s.target):''} <span style="color:var(--muted);font-size:12px;">${s.status||'진행중'}</span>
+      <div style="font-size:12.5px;color:var(--muted);margin-top:3px;">${s.thesis||''}</div>
+    </div>`).join('') : '<div class="empty">등록된 전략이 없습니다.</div>';
+}
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('nav.tabs button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('section.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    if(btn.dataset.view==='newentry'){ renderNewEntryPrices(); renderStrategyUpdatesForm(); }
+    if(btn.dataset.view==='dashboard') renderCharts();
+    if(btn.dataset.view==='holdings') renderHoldingsView();
+    if(btn.dataset.view==='strategy') renderStrategyView();
+    if(btn.dataset.view==='history'){ renderHistoryList(); calcRealizedPeriod(); }
+  });
+});
+
+/* ---------- new entry: trades ---------- */
+function addTradeRow(){
+  const acc=document.getElementById('tr-acc').value;
+  const type=document.getElementById('tr-type').value;
+  const stock=document.getElementById('tr-stock').value.trim();
+  const price=parseFloat(document.getElementById('tr-price').value);
+  const qty=parseFloat(document.getElementById('tr-qty').value);
+  const target=document.getElementById('tr-target').value;
+  const stop=document.getElementById('tr-stop').value;
+  const reason=document.getElementById('tr-reason').value.trim();
+  if(!stock || !price || !qty){ toast('종목명·가격·수량을 입력해주세요'); return; }
+  formTrades.push({id:uid(),acc,type,stock,price,qty,target,stop,reason});
+  ['tr-stock','tr-price','tr-qty','tr-target','tr-stop','tr-reason'].forEach(id=>document.getElementById(id).value='');
+  renderTradeList();
+  renderNewEntryPrices();
+}
+function removeTradeRow(id){ formTrades = formTrades.filter(t=>t.id!==id); renderTradeList(); renderNewEntryPrices(); }
+function renderTradeList(){
+  const el = document.getElementById('ne-tradeList');
+  el.innerHTML = formTrades.map(t=>`
+    <div class="trade-item">
+      <span><span class="tag">${ACC_LABEL[t.acc]}</span> ${t.type==='buy'?'매수':'매도'} · <b>${t.stock}</b> · ${won(t.price)} × ${t.qty}주 ${t.reason?(' · '+t.reason):''}</span>
+      <span class="close-x" onclick="removeTradeRow('${t.id}')">✕</span>
+    </div>`).join('');
+}
+
+/* ---------- new entry: current prices for existing holdings ---------- */
+function renderNewEntryPrices(){
+  const boughtNames = new Set(formTrades.filter(t=>t.type==='buy').map(t=>t.acc+'|'+t.stock));
+  let html='';
+  Object.keys(ACC_LABEL).forEach(a=>{
+    const list = STATE.accounts[a]||[];
+    if(!list.length) return;
+    html += `<h3 style="font-size:13px;margin:12px 0 6px;">${ACC_LABEL[a]}</h3><div class="row">`;
+    list.forEach(h=>{
+      const key = a+'|'+h.name;
+      const isNewBuyToday = boughtNames.has(key);
+      html += `<div><label>${h.name}${isNewBuyToday?' (오늘 매수분 반영됨)':''}</label>
+        <input type="number" data-acc="${a}" data-stock="${h.name}" class="ne-price-input" value="${h.lastPrice ?? h.avgPrice}"></div>`;
+    });
+    html += `</div>`;
+  });
+  document.getElementById('ne-priceInputs').innerHTML = html || '<div class="empty">보유 종목이 없습니다.</div>';
+}
+
+/* ---------- new entry: images ---------- */
+document.getElementById('ne-images').addEventListener('change', async (e)=>{
+  const files = Array.from(e.target.files);
+  for(const f of files){
+    try{
+      const dataUrl = await compressImage(f);
+      formImages.push({id:uid(), label:f.name, data:dataUrl});
+    }catch(err){ console.error(err); }
+  }
+  renderImgPreview();
+  e.target.value='';
+});
+function compressImage(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = e=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const maxW = 700;
+        const scale = Math.min(1, maxW/img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width*scale); canvas.height = Math.round(img.height*scale);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        resolve(canvas.toDataURL('image/jpeg',0.62));
+      };
+      img.onerror=reject;
+      img.src = e.target.result;
+    };
+    reader.onerror=reject;
+    reader.readAsDataURL(file);
+  });
+}
+function removeImg(id){ formImages = formImages.filter(i=>i.id!==id); renderImgPreview(); }
+function renderImgPreview(){
+  document.getElementById('ne-imgPreview').innerHTML = formImages.map(i=>`
+    <div style="position:relative;display:inline-block;">
+      <img src="${i.data}" class="img-thumb">
+      <span class="close-x" style="position:absolute;top:2px;right:8px;background:#fff;border-radius:50%;padding:1px 6px;" onclick="removeImg('${i.id}')">✕</span>
+    </div>`).join('');
+}
+
+/* ---------- new entry: strategy updates ---------- */
+function renderStrategyUpdatesForm(){
+  const active = STATE.strategies.filter(s=>s.status!=='종료');
+  const el = document.getElementById('ne-strategyUpdates');
+  if(!active.length){ el.innerHTML='<div class="empty">등록된 전략이 없습니다. 아래에서 새로 추가할 수 있습니다.</div>'; return; }
+  el.innerHTML = active.map(s=>`
+    <div class="strat-update-item" style="flex-direction:column;align-items:stretch;gap:6px;">
+      <div><span class="tag">${ACC_LABEL[s.acc]||s.acc}</span> <b>${s.stock}</b> — ${s.thesis||''}</div>
+      <div class="row">
+        <div><label style="margin:0;">상태</label>
+          <select id="su-status-${s.id}"><option ${s.status==='진행중'?'selected':''}>진행중</option><option ${s.status==='트리거 도달'?'selected':''}>트리거 도달</option><option ${s.status==='종료'?'selected':''}>종료</option></select>
+        </div>
+        <div><label style="margin:0;">오늘의 메모</label><input type="text" id="su-note-${s.id}" placeholder="오늘 이 전략에 대한 관찰"></div>
+      </div>
+    </div>`).join('');
+}
+function addNewStrategyDraft(){
+  const stock=document.getElementById('ns-stock').value.trim();
+  const acc=document.getElementById('ns-acc').value;
+  const target=document.getElementById('ns-target').value.trim();
+  const thesis=document.getElementById('ns-thesis').value.trim();
+  if(!stock || !thesis){ toast('종목과 전략 논리를 입력해주세요'); return; }
+  formStrategyDrafts.push({id:uid(), stock, acc, target, thesis, status:'진행중'});
+  ['ns-stock','ns-target','ns-thesis'].forEach(id=>document.getElementById(id).value='');
+  renderDraftList();
+}
+function removeDraft(id){ formStrategyDrafts = formStrategyDrafts.filter(d=>d.id!==id); renderDraftList(); }
+function renderDraftList(){
+  document.getElementById('ns-draftList').innerHTML = formStrategyDrafts.map(d=>`
+    <div class="trade-item"><span><b>${d.stock}</b> · ${d.thesis}</span><span class="close-x" onclick="removeDraft('${d.id}')">✕</span></div>`).join('');
+}
+
+/* ---------- apply trade to holdings ---------- */
+function applyTrade(t){
+  const list = STATE.accounts[t.acc];
+  let h = list.find(x=>x.name===t.stock);
+  if(t.type==='buy'){
+    if(h){ const newQty=h.qty+t.qty; h.avgPrice=Math.round((h.avgPrice*h.qty + t.price*t.qty)/newQty); h.qty=newQty; h.lastPrice=t.price; }
+    else{ list.push({id:uid(), name:t.stock, avgPrice:t.price, qty:t.qty, lastPrice:t.price}); }
+  } else {
+    if(h){ h.qty -= t.qty; h.lastPrice=t.price; if(h.qty<=0){ STATE.accounts[t.acc] = list.filter(x=>x!==h); } }
+  }
+}
+
+/* ---------- submit entry ---------- */
+async function submitEntry(){
+  const statusEl = document.getElementById('ne-status');
+  statusEl.textContent = '저장 중...';
+  const date = document.getElementById('ne-date').value || new Date().toISOString().slice(0,10);
+  const seedDeposit = parseFloat(document.getElementById('ne-seedDeposit').value)||0;
+  const seedWithdraw = parseFloat(document.getElementById('ne-seedWithdraw').value)||0;
+  const seedAdjust = seedDeposit - seedWithdraw;
+  const seedNote = document.getElementById('ne-seedNote').value.trim();
+
+  // apply trades
+  // 매도 거래는 적용 전에(=평단가가 바뀌기 전에) 실현손익을 계산해서 거래 기록에 남겨둔다
+  formTrades.forEach(t=>{
+    if(t.type==='sell'){
+      const h = (STATE.accounts[t.acc]||[]).find(x=>x.name===t.stock);
+      t.realizedPnL = h ? (t.price - h.avgPrice) * t.qty : null;
+    }
+  });
+  formTrades.forEach(applyTrade);
+
+  // apply manual current prices (for stocks not touched by a buy today)
+  document.querySelectorAll('.ne-price-input').forEach(inp=>{
+    const a=inp.dataset.acc, name=inp.dataset.stock, val=parseFloat(inp.value);
+    if(isNaN(val)) return;
+    const h = STATE.accounts[a].find(x=>x.name===name);
+    if(h) h.lastPrice = val;
+  });
+
+  // seed
+  if(seedAdjust!==0){
+    STATE.seed.cash += seedAdjust; STATE.seed.total += seedAdjust;
+    STATE.seedHistory.push({date, deposit:seedDeposit, withdraw:seedWithdraw, amount:seedAdjust, note:seedNote, total:STATE.seed.total});
+  }
+
+  // strategy updates
+  STATE.strategies.filter(s=>s.status!=='종료').forEach(s=>{
+    const statusInp = document.getElementById('su-status-'+s.id);
+    const noteInp = document.getElementById('su-note-'+s.id);
+    if(statusInp){
+      s.status = statusInp.value;
+      const note = noteInp.value.trim();
+      if(note) { s.updates = s.updates||[]; s.updates.push({date, note}); }
+    }
+  });
+  formStrategyDrafts.forEach(d=>{
+    STATE.strategies.push({id:d.id, stock:d.stock, acc:d.acc, target:d.target, thesis:d.thesis, status:'진행중', updates:[]});
+  });
+
+  const chartNotes = document.getElementById('ne-chartNotes').value.trim();
+  const mood = document.getElementById('ne-mood').value.trim();
+  const psych = document.getElementById('ne-psych').value.trim();
+  const holdplan = document.getElementById('ne-holdplan').value.trim();
+
+  const sessionData = {
+    time: new Date().toISOString(), kind:'full',
+    trades: formTrades, chartNotes, images: formImages, mood, psych, holdplan,
+    seedDeposit, seedWithdraw, seedNote
+  };
+  const { entry, existingIdx, entryId } = await upsertDailySession(date, sessionData);
+  const newSessionIndex = entry.sessions.length - 1;
+
+  // 중요: 상세 일지를 먼저 저장하고, 성공했을 때만 히스토리 목록에 추가한다.
+  const entrySaved = await stSet('entry-'+entryId, entry);
+  if(!entrySaved){
+    statusEl.textContent = '';
+    toast('일지 상세내용 저장에 실패했습니다. 다시 시도해주세요.');
+    return;
+  }
+
+  const hasTrades = entry.sessions.some(s=> (s.trades||[]).length>0);
+  const totals = computeEntryTradeTotals(entry);
+  const idxEntry = {id:entryId, date, pnlPct:entry.summary.seedPct, hasTrades, realizedPnL:totals.realizedPnL, buyTotal:totals.buyTotal, sellTotal:totals.sellTotal, evalV:entry.summary.evalV};
+  const nextIndex = existingIdx>=0
+    ? STATE.entriesIndex.map((e,i)=> i===existingIdx ? idxEntry : e)
+    : [idxEntry, ...STATE.entriesIndex];
+  const indexSaved = await stSet('entries-index', nextIndex);
+  if(!indexSaved){
+    statusEl.textContent = '';
+    toast('히스토리 목록 저장에 실패했습니다.');
+    return;
+  }
+  STATE.entriesIndex = nextIndex;
+
+  const stateResults = await Promise.all([
+    stSet('accounts-holdings', STATE.accounts),
+    stSet('seed-info', STATE.seed),
+    stSet('seed-history', STATE.seedHistory),
+    stSet('strategy-list', STATE.strategies)
+  ]);
+  if(stateResults.some(ok=>!ok)){
+    console.error('일부 앱 상태 저장 실패', stateResults);
+    toast('일지는 저장되었지만 일부 계좌/전략 정보 저장에 실패했습니다.');
+  }
+
+  statusEl.textContent = '저장 완료';
+
+  // reset form
+  formTrades=[]; formImages=[]; formStrategyDrafts=[];
+  renderTradeList(); renderImgPreview(); renderDraftList();
+  document.getElementById('ne-seedDeposit').value=0;
+  document.getElementById('ne-seedWithdraw').value=0;
+  document.getElementById('ne-seedNote').value='';
+  document.getElementById('ne-chartNotes').value='';
+  document.getElementById('ne-mood').value=''; document.getElementById('ne-psych').value=''; document.getElementById('ne-holdplan').value='';
+
+  statusEl.textContent = '';
+  toast('일지가 저장되었습니다');
+  STATE.entriesFullCache[entryId] = entry;
+  expandedEntries.add(entryId);
+  renderDashboard(); renderHoldingsView(); renderStrategyView(); renderHistoryList(); renderNewEntryPrices(); renderStrategyUpdatesForm(); renderCharts();
+  document.querySelector('nav.tabs button[data-view="history"]').click();
+}
+
+/* ---------- holdings view ---------- */
+document.getElementById('hold-acctabs').addEventListener('click', e=>{
+  if(e.target.tagName!=='BUTTON') return;
+  if(!e.target.dataset.acc) return; // "+ 계좌 추가" 버튼은 자체 onclick으로 처리됨
+  curHoldAcc = e.target.dataset.acc;
+  document.querySelectorAll('#hold-acctabs button[data-acc]').forEach(b=>b.classList.remove('active'));
+  e.target.classList.add('active');
+  renderHoldingsView();
+});
+function renderHoldingsView(){
+  renderAccTabs();
+  const list = STATE.accounts[curHoldAcc] || [];
+  let html = `<table><thead><tr><th>종목</th><th>섹터</th><th class="num">평단가</th><th class="num">수량</th><th class="num">현재가</th><th></th></tr></thead><tbody>`;
+  list.forEach(h=>{
+    const sectorOpts = STATE.sectors.map(s=>`<option value="${s}" ${h.sector===s?'selected':''}>${s}</option>`).join('');
+    html += `<tr>
+      <td>${h.name}</td>
+      <td id="sector-cell-${h.id}"><select class="sector-select" onchange="setHoldingSector('${h.id}', this.value)">
+        <option value="" ${!h.sector?'selected':''}>미분류</option>
+        ${sectorOpts}
+        <option value="__add__">+ 새 섹터...</option>
+      </select></td>
+      <td class="num"><input type="text" inputmode="numeric" style="width:110px;" value="${formatNum(h.avgPrice)}" oninput="formatCommaInput(this)" onchange="updateHolding('${h.id}','avgPrice',this.value)"></td>
+      <td class="num"><input type="text" inputmode="numeric" style="width:80px;" value="${formatNum(h.qty)}" oninput="formatCommaInput(this)" onchange="updateHolding('${h.id}','qty',this.value)"></td>
+      <td class="num"><input type="text" inputmode="numeric" style="width:110px;" value="${formatNum(h.lastPrice??h.avgPrice)}" oninput="formatCommaInput(this)" onchange="updateHolding('${h.id}','lastPrice',this.value)"></td>
+      <td><span class="close-x" onclick="removeHolding('${h.id}')">✕ 삭제</span></td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  document.getElementById('hold-table').innerHTML = list.length ? html : '<div class="empty">보유 종목이 없습니다.</div>';
+  document.getElementById('s-cash').value = STATE.seed.cash;
+  document.getElementById('s-lev').value = STATE.seed.leverage;
+  renderNewSectorChips();
+  renderStockSuggestions();
+}
+async function updateHolding(id, field, val){
+  const h = STATE.accounts[curHoldAcc].find(x=>x.id===id);
+  if(h){ h[field] = parseNum(val); await stSet('accounts-holdings', STATE.accounts); renderDashboard(); renderCharts(); }
+}
+async function removeHolding(id){
+  STATE.accounts[curHoldAcc] = STATE.accounts[curHoldAcc].filter(x=>x.id!==id);
+  await stSet('accounts-holdings', STATE.accounts);
+  renderHoldingsView(); renderDashboard(); renderCharts();
+}
+async function addHoldingManual(){
+  const name=document.getElementById('h-newname').value.trim();
+  const avg=parseNum(document.getElementById('h-newavg').value);
+  const qty=parseNum(document.getElementById('h-newqty').value);
+  const priceRaw=document.getElementById('h-newprice').value;
+  const price=parseNum(priceRaw);
+  if(!name||!avg||!qty){ toast('종목명·평단가·수량을 입력해주세요'); return; }
+  STATE.accounts[curHoldAcc].push({id:uid(), name, avgPrice:avg, qty, lastPrice: isNaN(price)?avg:price, sector:newHoldingSector||null});
+  await stSet('accounts-holdings', STATE.accounts);
+  ['h-newname','h-newavg','h-newqty','h-newprice'].forEach(id=>document.getElementById(id).value='');
+  newHoldingSector = null;
+  renderHoldingsView(); renderDashboard(); renderCharts();
+  toast('종목이 추가되었습니다');
+}
+async function saveSeedManual(){
+  const cash=parseFloat(document.getElementById('s-cash').value)||0;
+  const lev=parseFloat(document.getElementById('s-lev').value)||0;
+  STATE.seed = {cash, leverage:lev, total:cash+lev};
+  await stSet('seed-info', STATE.seed);
+  renderDashboard();
+  toast('시드가 저장되었습니다');
+}
+
+/* ---------- 데이터 전체 초기화 ---------- */
+async function stDelete(key){
+  if(window.storage && typeof window.storage.delete === 'function'){
+    try{ await window.storage.delete(key,false); }catch(e){ console.warn('window.storage delete 실패:', key, e); }
+  }
+  try{ localStorage.removeItem(key); }catch(e){ console.warn('localStorage 삭제 실패:', key, e); }
+}
+function startResetAll(){
+  document.getElementById('reset-area').innerHTML = `
+    <span style="font-size:13px;color:var(--loss);font-weight:600;">정말 모든 데이터를 지울까요? 되돌릴 수 없어요.</span>
+    <div style="margin-top:8px;">
+      <button class="btn danger small" onclick="confirmResetAll()">네, 전체 초기화합니다</button>
+      <button class="btn secondary small" onclick="cancelResetAll()">취소</button>
+    </div>`;
+}
+function cancelResetAll(){
+  document.getElementById('reset-area').innerHTML = `<button class="btn danger small" onclick="startResetAll()">전체 초기화</button>`;
+}
+async function confirmResetAll(){
+  const keys = ['accounts-holdings','seed-info','seed-history','strategy-list','entries-index','sector-list','acc-labels','account-cash'];
+  STATE.entriesIndex.forEach(e=> keys.push('entry-'+e.id));
+  for(const k of keys){ await stDelete(k); }
+  toast('모든 데이터를 초기화했습니다. 새로고침합니다...');
+  setTimeout(()=>location.reload(), 900);
+}
+
+/* ---------- strategy view ---------- */
+let deletingStrategyId = null;
+function renderStrategyView(){
+  if(!STATE.strategies.length){ document.getElementById('strat-full').innerHTML='<div class="empty">등록된 전략이 없습니다. "새 일지 작성" 탭에서 추가할 수 있습니다.</div>'; return; }
+  document.getElementById('strat-full').innerHTML = STATE.strategies.map(s=>`
+    <div class="card" style="background:var(--card-alt);margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div><span class="tag">${ACC_LABEL[s.acc]||s.acc}</span> <b style="font-size:15px;">${s.stock}</b></div>
+        ${deletingStrategyId===s.id ? `
+          <span style="display:inline-flex;gap:6px;align-items:center;">
+            <span style="font-size:11.5px;color:var(--loss);">삭제할까요?</span>
+            <button type="button" class="chip active" style="padding:3px 9px;background:var(--loss);border-color:var(--loss);" onclick="confirmDeleteStrategy('${s.id}')">삭제</button>
+            <button type="button" class="chip" style="padding:3px 9px;" onclick="cancelDeleteStrategy()">취소</button>
+          </span>
+        ` : `
+          <span style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;color:var(--muted);">${s.status||'진행중'}</span>
+            <span class="close-x" onclick="startDeleteStrategy('${s.id}')" title="전략 삭제">✕</span>
+          </span>
+        `}
+      </div>
+      <p style="font-size:13px;margin:8px 0 4px;">${s.thesis||''}</p>
+      ${s.target?`<p style="font-size:12.5px;color:var(--muted);">목표: ${s.target}</p>`:''}
+      ${(s.updates&&s.updates.length) ? `<div class="hr"></div><div style="font-size:12.5px;">
+        ${s.updates.slice().reverse().map(u=>`<div style="margin-bottom:4px;"><span class="num" style="color:var(--muted);">${u.date}</span> — ${u.note}</div>`).join('')}
+      </div>` : ''}
+    </div>`).join('');
+}
+function startDeleteStrategy(id){ deletingStrategyId = id; renderStrategyView(); }
+function cancelDeleteStrategy(){ deletingStrategyId = null; renderStrategyView(); }
+async function confirmDeleteStrategy(id){
+  STATE.strategies = STATE.strategies.filter(s=>s.id!==id);
+  await stSet('strategy-list', STATE.strategies);
+  deletingStrategyId = null;
+  renderStrategyView();
+  renderDashboard();
+  renderStrategyUpdatesForm();
+  toast('전략이 삭제되었습니다');
+}
+
+/* ---------- history view (아코디언: 여러 날짜 동시에 펼쳐두고 비교 가능) ---------- */
+let expandedEntries = new Set();
+let deletingSession = null; // {entryId, idx}
+
+function renderHistoryList(){
+  const el = document.getElementById('hist-list');
+  if(!STATE.entriesIndex.length){ el.innerHTML='<div class="empty">아직 작성된 일지가 없습니다.</div>'; return; }
+  el.innerHTML = STATE.entriesIndex.map(e=>{
+    const isOpen = expandedEntries.has(e.id);
+    const detailHtml = isOpen ? buildEntryDetailHtml(STATE.entriesFullCache[e.id], e.id) : '';
+    return `
+    <div class="timeline-entry">
+      <div class="date">${e.date}</div>
+      <div class="title" onclick="toggleEntryDetail('${e.id}')" style="display:flex;align-items:center;gap:8px;">
+        <span>${e.date} 일지 · <span class="${e.pnlPct>=0?'pos':'neg'} num">${pct(e.pnlPct)}</span> ${e.hasTrades?'':' <span style="color:var(--muted);font-weight:400;font-size:12px;">(무매매)</span>'} ${e.realizedPnL? `<span class="${e.realizedPnL>=0?'pos':'neg'} num" style="margin-left:6px;">실현손익 ${won(e.realizedPnL)}</span>` : ''}</span>
+        <span style="margin-left:auto;color:var(--muted);font-size:11px;">${isOpen?'▲ 접기':'▼ 펼치기'}</span>
+      </div>
+      ${detailHtml}
+    </div>`;
+  }).join('');
+}
+
+async function toggleEntryDetail(id){
+  if(expandedEntries.has(id)){
+    expandedEntries.delete(id);
+    renderHistoryList();
+    return;
+  }
+  if(!STATE.entriesFullCache[id]){
+    const full = await stGet('entry-'+id);
+    if(!full){ toast('일지 내용을 불러오지 못했습니다. 상세 저장 데이터가 없습니다.'); return; }
+    STATE.entriesFullCache[id] = full;
+  }
+  expandedEntries.add(id);
+  renderHistoryList();
+}
+
+function buildEntryDetailHtml(entry, id){
+  if(!entry) return '<div class="field-note" style="padding:10px 0;">불러오는 중...</div>';
+  const sessions = normalizeEntrySessions(entry);
+  const seedSnapshot = entry.seedSnapshot || {};
+  const summary = entry.summary || {};
+  const seedPnl = Number(summary.seedPnl) || 0;
+  const seedPct = Number(summary.seedPct) || 0;
+  const dayRealizedPnL = computeEntryRealizedPnL(entry);
+
+  const sessionsHtml = sessions.map((s,idx)=>{
+    const trades = Array.isArray(s.trades) ? s.trades : [];
+    const images = Array.isArray(s.images) ? s.images : [];
+    const timeLabel = s.time ? new Date(s.time).toLocaleString('ko-KR', {hour:'2-digit', minute:'2-digit'}) : '';
+    // 거래나 입출금 기록이 있는 저장분은 삭제하면 보유종목/시드와 불일치가 생기므로 삭제를 막는다
+    const deletable = trades.length===0 && !s.seedDeposit && !s.seedWithdraw;
+    const isDeleting = deletingSession && deletingSession.entryId===id && deletingSession.idx===idx;
+    const tradesHtml = trades.length ? trades.map(t=>{
+      const hasPnl = t.type==='sell' && typeof t.realizedPnL==='number';
+      const pnlCell = hasPnl ? `<td class="num ${t.realizedPnL>=0?'pos':'neg'}">${won(t.realizedPnL)}</td>` : `<td class="num field-note">-</td>`;
+      return `<tr><td>${ACC_LABEL[t.acc] || t.acc || '-'}</td><td>${t.type==='buy'?'매수':t.type==='sell'?'매도':'-'}</td><td>${t.stock||'-'}</td><td class="num">${won(t.price||0)}</td><td class="num">${t.qty||0}주</td>${pnlCell}<td>${t.reason||''}</td></tr>`;
+    }).join('') : '';
+    const seedNoteLine = (s.seedDeposit||s.seedWithdraw) ? `<p class="field-note">입금 ${won(s.seedDeposit||0)} / 출금 ${won(s.seedWithdraw||0)} ${s.seedNote?('· '+s.seedNote):''}</p>` : '';
+
+    let deleteControl = '';
+    if(isDeleting){
+      deleteControl = `<span style="display:inline-flex;gap:4px;align-items:center;font-size:11px;">
+        <span style="color:var(--loss);">삭제할까요?</span>
+        <button type="button" class="chip active" style="padding:2px 8px;background:var(--loss);border-color:var(--loss);" onclick="event.stopPropagation(); confirmDeleteSession('${id}', ${idx});">삭제</button>
+        <button type="button" class="chip" style="padding:2px 8px;" onclick="event.stopPropagation(); cancelDeleteSession();">취소</button>
+      </span>`;
+    } else if(deletable){
+      deleteControl = `<span class="close-x" style="font-size:11px;" onclick="event.stopPropagation(); startDeleteSession('${id}', ${idx});" title="이 저장분 삭제 (다른 기록에 영향 없음)">✕</span>`;
+    }
+
+    return `
+      <div style="border:1px solid var(--border); border-radius:3px; padding:14px 16px; margin-bottom:12px; background:var(--card-alt);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted);">
+            ${idx+1}번째 저장 ${timeLabel? ('· '+timeLabel):''} ${s.kind==='quick'? '<span class="tag">종가 스냅샷</span>' : ''}
+          </div>
+          ${deleteControl}
+        </div>
+        ${seedNoteLine}
+        ${tradesHtml? `<table><thead><tr><th>계좌</th><th>구분</th><th>종목</th><th class="num">가격</th><th class="num">수량</th><th class="num">실현손익</th><th>이유</th></tr></thead><tbody>${tradesHtml}</tbody></table>` : '<p class="field-note">이 저장분에는 거래가 없습니다.</p>'}
+        ${s.chartNotes? `<p style="font-size:13.5px;margin-top:8px;"><b>차트 근거</b> — ${s.chartNotes}</p>`:''}
+        ${(s.mood||s.psych||s.holdplan)? `<p style="font-size:12.5px;color:var(--muted);margin-top:6px;">${s.mood?('시장 분위기: '+s.mood+'<br>'):''}${s.psych?('심리 상태: '+s.psych+'<br>'):''}${s.holdplan?('보유계획 대비: '+s.holdplan):''}</p>`:''}
+        ${images.length? `<div class="img-wrap" style="margin-top:8px;">${images.map(i=>`<img src="${i.data}" class="img-thumb">`).join('')}</div>` : ''}
+      </div>`;
+  }).join('');
+
+  return `
+    <div style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--border);" onclick="event.stopPropagation();">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+        <button class="btn small secondary" onclick="exportMd('${id}')">.md 내보내기</button>
+      </div>
+      <div class="grid3">
+        <div class="stat-box"><div class="k">총시드(최종)</div><div class="v num">${won(seedSnapshot.total||0)}</div></div>
+        <div class="stat-box"><div class="k">평가금 합계(최종)</div><div class="v num">${won(summary.evalV||0)}</div></div>
+        <div class="stat-box"><div class="k">시드대비 손익(최종)</div><div class="v num ${seedPnl>=0?'pos':'neg'}">${won(seedPnl)} (${pct(seedPct)})</div></div>
+      </div>
+      ${dayRealizedPnL? `<div class="stat-box" style="margin-top:14px;"><div class="k">당일 실현손익 합계</div><div class="v num ${dayRealizedPnL>=0?'pos':'neg'}">${won(dayRealizedPnL)}</div></div>` : ''}
+      <div class="hr"></div>
+      ${sessionsHtml}
+    </div>`;
+}
+
+function startDeleteSession(entryId, idx){ deletingSession = {entryId, idx}; renderHistoryList(); }
+function cancelDeleteSession(){ deletingSession = null; renderHistoryList(); }
+async function confirmDeleteSession(entryId, idx){
+  const entry = STATE.entriesFullCache[entryId] || await stGet('entry-'+entryId);
+  if(!entry){ deletingSession=null; renderHistoryList(); return; }
+  const sessions = normalizeEntrySessions(entry);
+  const target = sessions[idx];
+  if(!target){ deletingSession=null; renderHistoryList(); return; }
+  if((target.trades||[]).length>0 || target.seedDeposit || target.seedWithdraw){
+    toast('이 저장분은 거래/입출금 기록이 있어 삭제할 수 없어요');
+    deletingSession=null; renderHistoryList(); return;
+  }
+  sessions.splice(idx,1);
+  deletingSession = null;
+  if(sessions.length===0){
+    // 그날 저장분이 하나도 안 남으면, 히스토리 목록에서 그 날짜 자체를 제거
+    STATE.entriesIndex = STATE.entriesIndex.filter(e=>e.id!==entryId);
+    await stSet('entries-index', STATE.entriesIndex);
+    await stDelete('entry-'+entryId);
+    delete STATE.entriesFullCache[entryId];
+    expandedEntries.delete(entryId);
+    toast('그날 기록이 모두 삭제되었습니다');
+  } else {
+    entry.sessions = sessions;
+    await stSet('entry-'+entryId, entry);
+    STATE.entriesFullCache[entryId] = entry;
+    toast('저장분이 삭제되었습니다');
+  }
+  renderHistoryList();
+  renderCharts();
+}
+async function exportMd(id){
+  const entry = STATE.entriesFullCache[id] || await stGet('entry-'+id);
+  if(!entry) return;
+  const sessions = normalizeEntrySessions(entry);
+  const dayRealizedPnL = computeEntryRealizedPnL(entry);
+  let md = `# 매매일지 — ${entry.date}\n\n## 요약 (최종)\n- 총시드: ${won(entry.seedSnapshot.total)}\n- 평가금 합계: ${won(entry.summary.evalV)}\n- 시드대비 손익: ${won(entry.summary.seedPnl)} (${pct(entry.summary.seedPct)})\n${dayRealizedPnL?('- 당일 실현손익 합계: '+won(dayRealizedPnL)+'\n'):''}\n`;
+  sessions.forEach((s,idx)=>{
+    const timeLabel = s.time ? new Date(s.time).toLocaleString('ko-KR') : '';
+    md += `## ${idx+1}번째 저장 ${timeLabel?('('+timeLabel+')'):''}\n\n`;
+    if((s.trades||[]).length){
+      md += `| 계좌 | 구분 | 종목 | 가격 | 수량 | 실현손익 | 이유 |\n|---|---|---|---|---|---|---|\n`;
+      s.trades.forEach(t=>{
+        const pnlStr = (t.type==='sell' && typeof t.realizedPnL==='number') ? won(t.realizedPnL) : '-';
+        md += `| ${ACC_LABEL[t.acc]} | ${t.type==='buy'?'매수':'매도'} | ${t.stock} | ${won(t.price)} | ${t.qty}주 | ${pnlStr} | ${t.reason||''} |\n`;
+      });
+      md += `\n`;
+    } else { md += `무매매입니다.\n\n`; }
+    if(s.chartNotes) md += `**차트 근거**: ${s.chartNotes}\n\n`;
+    if(s.mood||s.psych||s.holdplan) md += `- 시장 분위기: ${s.mood||'-'}\n- 심리 상태: ${s.psych||'-'}\n- 보유계획 대비: ${s.holdplan||'-'}\n\n`;
+    md += `---\n\n`;
+  });
+  const blob = new Blob([md], {type:'text/markdown'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${entry.date}_매매일지.md`;
+  a.click();
+}
+
+init();
+</script>
+</body>
+</html>
