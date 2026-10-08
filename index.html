@@ -1251,14 +1251,15 @@ async function submitEntry(){
   const seedNote = document.getElementById('ne-seedNote').value.trim();
 
   // apply trades
-  // 매도 거래는 적용 전에(=평단가가 바뀌기 전에) 실현손익을 계산해서 거래 기록에 남겨둔다
+  // 거래를 입력 순서대로 하나씩 적용하면서, 매도는 그 직전 시점의 평단가로 실현손익을 계산한다
+  // (같은 날 매수 후 매도한 경우에도 앞선 매수가 평단가에 반영된 뒤 계산되도록)
   formTrades.forEach(t=>{
     if(t.type==='sell'){
       const h = (STATE.accounts[t.acc]||[]).find(x=>x.name===t.stock);
       t.realizedPnL = h ? (t.price - h.avgPrice) * t.qty : null;
     }
+    applyTrade(t);
   });
-  formTrades.forEach(applyTrade);
 
   // apply manual current prices (for stocks not touched by a buy today)
   document.querySelectorAll('.ne-price-input').forEach(inp=>{
